@@ -115,6 +115,7 @@ namespace Setting
 {
     extern const SettingsBool allow_experimental_analyzer;
     extern const SettingsBool allow_experimental_kusto_dialect;
+    extern const SettingsBool allow_experimental_pipe_syntax;
     extern const SettingsBool allow_experimental_prql_dialect;
     extern const SettingsBool allow_settings_after_format_in_insert;
     extern const SettingsBool async_insert;
@@ -220,6 +221,27 @@ static void checkASTSizeLimits(const IAST & ast, const Settings & settings)
         ast.checkDepth(settings[Setting::max_ast_depth]);
     if (settings[Setting::max_ast_elements])
         ast.checkSize(settings[Setting::max_ast_elements]);
+}
+
+/// Check if the AST contains any SELECT query that was generated from pipe syntax
+static bool hasPipeSyntax(const IAST * ast)
+{
+    if (!ast)
+        return false;
+
+    if (const auto * select_query = ast->as<ASTSelectQuery>())
+    {
+        if (select_query->from_pipe_syntax)
+            return true;
+    }
+
+    for (const auto & child : ast->children)
+    {
+        if (hasPipeSyntax(child.get()))
+            return true;
+    }
+
+    return false;
 }
 
 
@@ -1282,6 +1304,11 @@ static BlockIO executeQueryImpl(
 
         if (out_ast)
         {
+            /// Check if pipe syntax is used but not enabled
+            if (!settings[Setting::allow_experimental_pipe_syntax] && hasPipeSyntax(out_ast.get()))
+                throw Exception(ErrorCodes::SUPPORT_IS_DISABLED,
+                    "Pipe syntax (|>) is disabled. Enable it with 'SET allow_experimental_pipe_syntax = 1'");
+
             if (const auto * insert_query = out_ast->as<ASTInsertQuery>(); insert_query && insert_query->data)
                 query_end = insert_query->data;
 

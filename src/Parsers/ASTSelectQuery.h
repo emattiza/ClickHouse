@@ -100,6 +100,7 @@ public:
     bool order_by_all = false;
     bool limit_with_ties = false;
     bool limit_by_all = false;
+    bool from_pipe_syntax = false;  /// True if this query was generated from pipe syntax (|>)
 
     ASTPtr & refSelect()    { return getExpression(Expression::SELECT); }
     ASTPtr & refTables()    { return getExpression(Expression::TABLES); }
