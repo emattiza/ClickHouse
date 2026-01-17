@@ -297,6 +297,18 @@ static bool parsePipeDistinct(IParser::Pos & pos, ASTPtr & node, Expected & expe
     return true;
 }
 
+static bool parsePipeJoin(IParser::Pos & pos, ASTPtr & node, Expected & expected)
+{
+    ASTPtr join_element;
+    if (!ParserTablesInSelectQueryElement(false).parse(pos, join_element, expected))
+        return false;
+
+    auto * select_query = node->as<ASTSelectQuery>();
+    auto tables = select_query->tables();
+    tables->children.push_back(join_element);
+    return true;
+}
+
 static bool parsePipeOperation(IParser::Pos & pos, ASTPtr & node, Expected & expected)
 {
     return parsePipeWhere(pos, node, expected) || parsePipeSelect(pos, node, expected) || parsePipeOrderBy(pos, node, expected)
